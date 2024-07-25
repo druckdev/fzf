@@ -66,7 +66,13 @@ __fzfcmd() {
 }
 
 fzf-file-widget() {
-  LBUFFER="${LBUFFER}$(__fzf_select)"
+  # NOTE: This is a hack to fix the (z) expansion flag if the path is the only
+  #       word in LBUFFER, as then [-1] treats the expansion as a scalar and
+  #       returns the last character.
+  local lbuffer_words="x $LBUFFER"
+  local last_word="${${(z)lbuffer_words}[-1]}"
+
+  LBUFFER="${LBUFFER}$(FZF_DEFAULT_OPTS="${FZF_DEFAULT_OPTS-} --query=${(qqq)last_word}" __fzf_select)"
   local ret=$?
   zle reset-prompt
   return $ret
