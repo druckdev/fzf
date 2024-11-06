@@ -3888,6 +3888,7 @@ func (t *Terminal) Loop() error {
 	previewDraggingPos := -1
 	barDragging := false
 	pbarDragging := false
+	pborderDragging := false
 	wasDown := false
 	needBarrier := true
 
@@ -4566,6 +4567,7 @@ func (t *Terminal) Loop() error {
 				if !me.Down {
 					barDragging = false
 					pbarDragging = false
+					pborderDragging = false
 					previewDraggingPos = -1
 				}
 
@@ -4617,6 +4619,44 @@ func (t *Terminal) Loop() error {
 						t.previewer.following.Set(t.previewer.offset >= numLines-effectiveHeight)
 						req(reqPreviewRefresh)
 					}
+					break
+				}
+
+				pborderDragging = me.Down && (pborderDragging || clicked && t.hasPreviewWindow() && t.pborder.Enclose(my, mx))
+				if pborderDragging {
+					var max int
+					var curr int
+					screenWidth, _, marginInt, paddingInt := t.adjustMarginAndPadding()
+					padWidth := marginInt[1] + marginInt[3] + paddingInt[1] + paddingInt[3]
+					height, _ := t.MaxFitAndPad()
+
+					switch t.previewOpts.position {
+
+					// TODO: tweak values a bit (i.e. subtract for headerlines,
+					//       prompt, frame, etc.)
+					// TODO: left, up currently allow to hide the preview window
+					//       completely (i.e. newSize = 0?)
+					case posUp:
+						max = height
+						curr = my
+					case posDown:
+						max = height
+						curr = max - my
+					case posRight:
+						max = screenWidth - padWidth
+						// -1 for minimum width of one char
+						curr = max - (mx - t.borderWidth - 1 - t.window.Left())
+					case posLeft:
+						max = screenWidth - padWidth
+						curr = mx + t.borderWidth + 1
+					}
+					t.printer(fmt.Sprintf("max: %d, curr: %d, left: %d, top: %d\n", max, curr, t.window.Left(), t.window.Top()))
+					curr = util.Constrain(curr, 0, max)
+
+					newSize := float64(100 * curr / max)
+					t.previewOpts.size = sizeSpec{newSize, true}
+					updatePreviewWindow(false)
+					req(reqPreviewRefresh)
 					break
 				}
 
