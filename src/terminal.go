@@ -4625,36 +4625,44 @@ func (t *Terminal) Loop() error {
 				pborderDragging = me.Down && (pborderDragging || clicked && t.hasPreviewWindow() && t.pborder.Enclose(my, mx))
 				if pborderDragging {
 					var max int
-					var curr int
-					screenWidth, _, marginInt, paddingInt := t.adjustMarginAndPadding()
+					var newSize int
+					screenWidth, screenHeight, marginInt, paddingInt := t.adjustMarginAndPadding() // TRBL
 					padWidth := marginInt[1] + marginInt[3] + paddingInt[1] + paddingInt[3]
-					height, _ := t.MaxFitAndPad()
+					padHeight := marginInt[0] + marginInt[2] + paddingInt[0] + paddingInt[2]
+					padLeft := marginInt[3] + paddingInt[3]
+					padTop := marginInt[0] + paddingInt[0]
+					width := screenWidth - padWidth
+					height := screenHeight - padHeight
 
+					minPreviewWidth := 5
+					minPreviewHeight := 1 + borderLines(t.previewOpts.border)
+
+					mx -= padLeft
+					my -= padTop
+
+					// TODO: allow to hide with size == 0? maybe disable rather?
+					// TODO: get rid of magic values
+					// TODO: test with all kinds of margin/border/previewBorder
+					//       configurations
 					switch t.previewOpts.position {
-
-					// TODO: tweak values a bit (i.e. subtract for headerlines,
-					//       prompt, frame, etc.)
-					// TODO: left, up currently allow to hide the preview window
-					//       completely (i.e. newSize = 0?)
 					case posUp:
 						max = height
-						curr = my
+						newSize = my - minPreviewHeight + 2
 					case posDown:
 						max = height
-						curr = max - my
+						newSize = height - my - minHeight + 1
 					case posRight:
-						max = screenWidth - padWidth
-						// -1 for minimum width of one char
-						curr = max - (mx - t.borderWidth - 1 - t.window.Left())
+						max = width
+						newSize = width - mx - minWidth
 					case posLeft:
-						max = screenWidth - padWidth
-						curr = mx + t.borderWidth + 1
+						max = width
+						newSize = mx - minPreviewWidth + 2
 					}
-					t.printer(fmt.Sprintf("max: %d, curr: %d, left: %d, top: %d\n", max, curr, t.window.Left(), t.window.Top()))
-					curr = util.Constrain(curr, 0, max)
 
-					newSize := float64(100 * curr / max)
-					t.previewOpts.size = sizeSpec{newSize, true}
+					newSize = util.Constrain(newSize, 1, max)
+					// t.printer(fmt.Sprintf("newSize: %d, x: %d, padW: %d, padH: %d, wleft: %d, pleft: %d, wWidth: %d, pwWidth: %d\n", newSize, mx, padLeft, padTop, t.window.Left(), t.pwindow.Left(), t.window.Width(), t.pwindow.Width()))
+
+					t.previewOpts.size = sizeSpec{float64(newSize), false}
 					updatePreviewWindow(false)
 					req(reqPreviewRefresh)
 					break
