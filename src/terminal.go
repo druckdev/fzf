@@ -4604,13 +4604,6 @@ func (t *Terminal) Loop() error {
 					// TODO: scrollbar disappears for positions left & right
 					// TODO: should this allow a size of zero?
 
-					// TODO: this does nothing currently as the resizing code
-					//       uses the hardcoded minHeight value
-					minWindowHeight := minHeight
-					if t.noSeparatorLine() {
-						minWindowHeight--
-					}
-
 					previewWidth := t.pwindow.Width() + borderColumns(t.previewOpts.border, t.borderWidth)
 					previewHeight := t.pwindow.Height() + borderLines(t.previewOpts.border)
 					minPreviewWidth := 1 + borderColumns(t.previewOpts.border, t.borderWidth)
