@@ -974,6 +974,7 @@ func (t *Terminal) environ() []string {
 }
 
 func borderLines(shape tui.BorderShape) int {
+	// TODO: Use HasTop & HasBottom
 	switch shape {
 	case tui.BorderHorizontal, tui.BorderRounded, tui.BorderSharp, tui.BorderBold, tui.BorderBlock, tui.BorderThinBlock, tui.BorderDouble:
 		return 2
@@ -981,6 +982,17 @@ func borderLines(shape tui.BorderShape) int {
 		return 1
 	}
 	return 0
+}
+
+func borderColumns(shape tui.BorderShape, borderWidth int) int {
+	columns := 0
+	if shape.HasLeft() {
+		columns += 1 + borderWidth
+	}
+	if shape.HasRight() {
+		columns += 1 + borderWidth
+	}
+	return columns
 }
 
 func (t *Terminal) visibleHeaderLines() int {
@@ -1570,6 +1582,7 @@ func (t *Terminal) resizeWindows(forcePreview bool) {
 					previewBorder = tui.MakeBorderStyle(previewOpts.border, t.unicode)
 				}
 				t.pborder = t.tui.NewWindow(y, x, w, h, true, previewBorder)
+				// TODO: use HasLeft() etc.
 				switch previewOpts.border {
 				case tui.BorderSharp, tui.BorderRounded, tui.BorderBold, tui.BorderBlock, tui.BorderThinBlock, tui.BorderDouble:
 					pwidth -= (1 + bw) * 2
@@ -1606,6 +1619,7 @@ func (t *Terminal) resizeWindows(forcePreview bool) {
 			}
 			verticalPad := 2
 			minPreviewHeight := 3
+			// Use HasTop and HasBottom
 			switch previewOpts.border {
 			case tui.BorderNone, tui.BorderVertical, tui.BorderLeft, tui.BorderRight:
 				verticalPad = 0
@@ -1643,7 +1657,20 @@ func (t *Terminal) resizeWindows(forcePreview bool) {
 					createPreviewWindow(marginInt[0]+height-pheight, marginInt[3], width, pheight)
 				}
 			case posLeft, posRight:
-				pwidth := calculateSize(width, previewOpts.size, minWidth, 5, 4)
+				// TODO: the current code responds buggy to new sizes
+				// when borders are missing (i.e. Width != newSize after
+				// a resize, e.g. newSize == 1 -> Width == 5).
+				minPreviewWidth := 1
+				pad := 0
+				if previewOpts.border.HasLeft() {
+					pad += 2 // TODO: use borderWidth
+				}
+				if previewOpts.border.HasRight() {
+					pad += 2 // TODO: use borderWidth
+				}
+				// pad = 4
+				minPreviewWidth += pad
+				pwidth := calculateSize(width, previewOpts.size, minWidth, minPreviewWidth, pad)
 				if hasThreshold && pwidth < previewOpts.threshold {
 					t.activePreviewOpts = previewOpts.alternative
 					if forcePreview {
@@ -4624,47 +4651,66 @@ func (t *Terminal) Loop() error {
 
 				pborderDragging = me.Down && (pborderDragging || clicked && t.hasPreviewWindow() && t.pborder.Enclose(my, mx))
 				if pborderDragging {
-					var max int
-					var newSize int
-					screenWidth, screenHeight, marginInt, paddingInt := t.adjustMarginAndPadding() // TRBL
-					padWidth := marginInt[1] + marginInt[3] + paddingInt[1] + paddingInt[3]
-					padHeight := marginInt[0] + marginInt[2] + paddingInt[0] + paddingInt[2]
-					padLeft := marginInt[3] + paddingInt[3]
-					padTop := marginInt[0] + paddingInt[0]
-					width := screenWidth - padWidth
-					height := screenHeight - padHeight
+					// TODO: scrollbar disappears for positions left & right
+					// TODO: should this allow a size of zero?
 
-					minPreviewWidth := 5
+					var maxSize int
+					var newSize int
+					var left int
+					var top int
+
+					previewWidth := t.pwindow.Width() + borderColumns(t.previewOpts.border, t.borderWidth)
+					previewHeight := t.pwindow.Height() + borderLines(t.previewOpts.border)
+					minPreviewWidth := 1 + borderColumns(t.previewOpts.border, t.borderWidth)
 					minPreviewHeight := 1 + borderLines(t.previewOpts.border)
 
-					mx -= padLeft
-					my -= padTop
-
-					// TODO: allow to hide with size == 0? maybe disable rather?
-					// TODO: get rid of magic values
-					// TODO: test with all kinds of margin/border/previewBorder
-					//       configurations
-					switch t.previewOpts.position {
-					case posUp:
-						max = height
-						newSize = my - minPreviewHeight + 2
-					case posDown:
-						max = height
-						newSize = height - my - minHeight + 1
-					case posRight:
-						max = width
-						newSize = width - mx - minWidth
-					case posLeft:
-						max = width
-						newSize = mx - minPreviewWidth + 2
+					previewTop := t.pwindow.Top()
+					if t.previewOpts.border.HasTop() {
+						previewTop -= 1
+					}
+					previewLeft := t.pwindow.Left()
+					if t.previewOpts.border.HasLeft() {
+						previewLeft -= t.borderWidth + 1
 					}
 
-					newSize = util.Constrain(newSize, 1, max)
-					// t.printer(fmt.Sprintf("newSize: %d, x: %d, padW: %d, padH: %d, wleft: %d, pleft: %d, wWidth: %d, pwWidth: %d\n", newSize, mx, padLeft, padTop, t.window.Left(), t.pwindow.Left(), t.window.Width(), t.pwindow.Width()))
+					switch t.previewOpts.position {
+					case posUp:
+						// -1 so the cursor sits on the lowest line of the preview window
+						top = previewTop + minPreviewHeight - 1
+						// +1 since 0- to 1-based
+						newSize = my - top + 1
+					case posDown:
+						top = t.window.Top() + minHeight
+						// -1 so the cursor sits on the lowest line of the preview window
+						maxSize = previewTop + previewHeight - (minPreviewHeight - 1) - top
+						newSize = maxSize - (my - top)
+					case posRight:
+						left = t.window.Left() + minWidth
+						// -1 so the cursor sits on the last column of the preview window
+						maxSize = previewLeft + previewWidth - (minPreviewWidth - 1) -left
+						newSize = maxSize - (mx - left)
+					case posLeft:
+						// -1 so the cursor sits on the last column of the preview window
+						left = previewLeft + minPreviewWidth - 1
+						// +1 since 0- to 1-based
+						newSize = mx - left + 1
+					}
+
+					if newSize < 1 {
+						newSize = 1
+					}
+
+					// break if size did not change
+					if !t.previewOpts.size.percent && t.previewOpts.size.size == float64(newSize) {
+						break
+					}
 
 					t.previewOpts.size = sizeSpec{float64(newSize), false}
 					updatePreviewWindow(false)
 					req(reqPreviewRefresh)
+
+					// t.executeCommand(fmt.Sprintf("echo \"x: %d, normX: %d, maxSize: %d, wleft: %d, pleft: %d, wWidth: %d, pwWidth: %d, newSize: %d\" >> fzf.log", mx, mx - left, maxSize, t.window.Left(), t.pwindow.Left(), t.window.Width(), t.pwindow.Width(), newSize), false, true, false, false, "")
+					// t.executeCommand(fmt.Sprintf("echo \"y: %d, normY: %d, maxSize: %d, wtop: %d, ptop: %d, wHeight: %d, pwHeight: %d, newSize: %d\" >> fzf.log", my, my - top, maxSize, t.window.Top(), t.pwindow.Top(), t.window.Height(), t.pwindow.Height(), newSize), false, true, false, false, "")
 					break
 				}
 
