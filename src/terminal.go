@@ -4646,21 +4646,44 @@ func (t *Terminal) Loop() error {
 					//       configurations
 					switch t.previewOpts.position {
 					case posUp:
-						max = height
-						newSize = my - minPreviewHeight + 2
+						maxSize = (t.window.Top() + t.window.Height()) - t.pwindow.Top() - minHeight
+						newSize = my - t.pwindow.Top()
 					case posDown:
-						max = height
-						newSize = height - my - minHeight + 1
+						maxSize = (t.pwindow.Top() + t.pwindow.Height()) - t.window.Top() - minHeight
+						newSize = maxSize - (my - t.window.Top()) + 2
 					case posRight:
-						max = width
-						newSize = width - mx - minWidth
+						left = t.window.Left() + minWidth
+
+						maxSize = t.pwindow.Left() + t.pwindow.Width() - left
+						// TODO: subtract minPreviewWidth rather?
+						maxSize -= t.borderWidth + 1
+
+						// TODO: the current code responds buggy to new sizes
+						// when borders are missing (i.e. Width != newSize after
+						// a resize, e.g. newSize == 1 -> Width == 5). The next
+						// lines circumvent this a bit
+						//if !t.previewOpts.border.HasLeft() {
+						//	maxSize -= t.borderWidth + 1
+						//}
+						//if !t.previewOpts.border.HasRight() {
+						//	maxSize -= t.borderWidth + 1
+						//}
+
+						newSize = maxSize - (mx - left)
 					case posLeft:
-						max = width
-						newSize = mx - minPreviewWidth + 2
+						// -1 since the cursor should sit on the right border
+						left = t.pwindow.Left() + minPreviewWidth - 1
+						if t.previewOpts.border.HasLeft() {
+							left -= t.borderWidth + 1
+						}
+						// maxSize = (t.window.Left() + t.window.Width()) - t.pwindow.Left() - minWidth
+						// maxSize = t.window.Left() + t.window.Width() - left
+						// 1-based
+						newSize = (mx + 1) - left
 					}
 
-					newSize = util.Constrain(newSize, 1, max)
-					// t.printer(fmt.Sprintf("newSize: %d, x: %d, padW: %d, padH: %d, wleft: %d, pleft: %d, wWidth: %d, pwWidth: %d\n", newSize, mx, padLeft, padTop, t.window.Left(), t.pwindow.Left(), t.window.Width(), t.pwindow.Width()))
+					newSize = util.Constrain(newSize, 1, newSize)
+					// TODO: break if size did not change
 
 					t.previewOpts.size = sizeSpec{float64(newSize), false}
 					updatePreviewWindow(false)
