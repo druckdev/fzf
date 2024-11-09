@@ -4601,9 +4601,6 @@ func (t *Terminal) Loop() error {
 
 				pborderDragging = me.Down && (pborderDragging || clicked && t.hasPreviewWindow() && t.pborder.Enclose(my, mx))
 				if pborderDragging {
-					// TODO: scrollbar disappears for positions left & right
-					// TODO: should this allow a size of zero?
-
 					previewWidth := t.pwindow.Width() + borderColumns(t.previewOpts.border, t.borderWidth)
 					previewHeight := t.pwindow.Height() + borderLines(t.previewOpts.border)
 					minPreviewWidth := 1 + borderColumns(t.previewOpts.border, t.borderWidth)
@@ -4630,6 +4627,7 @@ func (t *Terminal) Loop() error {
 					}
 
 					var newSize int
+					// TODO: scrollbar disappears for positions left & right
 					switch t.previewOpts.position {
 					case posUp:
 						top := previewTop + minPreviewHeight
@@ -4646,6 +4644,7 @@ func (t *Terminal) Loop() error {
 						// +1 since index to size
 						newSize = mx - left + 1
 					}
+					// TODO: should this allow a size of zero?
 					if newSize < 1 {
 						newSize = 1
 					}
