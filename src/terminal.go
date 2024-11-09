@@ -4636,13 +4636,11 @@ func (t *Terminal) Loop() error {
 						// +1 since index to size
 						newSize = my - top + 1
 					case posRight:
-						left := t.window.Left() + minWidth
-						maxSize := previewLeft + previewWidth - minPreviewWidth - left
-						newSize = maxSize - (mx - left)
+						right := previewLeft + previewWidth - minPreviewWidth
+						newSize = right - mx
 					case posDown:
-						top := t.window.Top() + minWindowHeight
-						maxSize := previewTop + previewHeight - minPreviewHeight - top
-						newSize = maxSize - (my - top)
+						bottom := previewTop + previewHeight - minPreviewHeight
+						newSize = bottom - my
 					case posLeft:
 						left := previewLeft + minPreviewWidth
 						// +1 since index to size
