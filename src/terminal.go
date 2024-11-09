@@ -4654,53 +4654,51 @@ func (t *Terminal) Loop() error {
 					// TODO: scrollbar disappears for positions left & right
 					// TODO: should this allow a size of zero?
 
-					var maxSize int
-					var newSize int
-					var left int
-					var top int
-
 					previewWidth := t.pwindow.Width() + borderColumns(t.previewOpts.border, t.borderWidth)
 					previewHeight := t.pwindow.Height() + borderLines(t.previewOpts.border)
 					minPreviewWidth := 1 + borderColumns(t.previewOpts.border, t.borderWidth)
 					minPreviewHeight := 1 + borderLines(t.previewOpts.border)
+					// Decrement, so the cursor drags the last column/row of the
+					// preview window (i.e. in most cases the border) and not
+					// the one after.
+					minPreviewWidth--
+					minPreviewHeight--
 
 					previewTop := t.pwindow.Top()
+					previewLeft := t.pwindow.Left()
+					// Unlike window, pwindow does not include it's border, so
+					// Top and Left have to be adjusted.
 					if t.previewOpts.border.HasTop() {
 						previewTop -= 1
 					}
-					previewLeft := t.pwindow.Left()
 					if t.previewOpts.border.HasLeft() {
 						previewLeft -= t.borderWidth + 1
 					}
 
+					var newSize int
 					switch t.previewOpts.position {
 					case posUp:
-						// -1 so the cursor sits on the lowest line of the preview window
-						top = previewTop + minPreviewHeight - 1
-						// +1 since 0- to 1-based
+						top := previewTop + minPreviewHeight
+						// +1 since index to size
 						newSize = my - top + 1
 					case posDown:
-						top = t.window.Top() + minHeight
-						// -1 so the cursor sits on the lowest line of the preview window
-						maxSize = previewTop + previewHeight - (minPreviewHeight - 1) - top
+						top := t.window.Top() + minHeight
+						maxSize: = previewTop + previewHeight - minPreviewHeight - top
 						newSize = maxSize - (my - top)
 					case posRight:
-						left = t.window.Left() + minWidth
-						// -1 so the cursor sits on the last column of the preview window
-						maxSize = previewLeft + previewWidth - (minPreviewWidth - 1) -left
+						left := t.window.Left() + minWidth
+						maxSize: = previewLeft + previewWidth - minPreviewWidth - left
 						newSize = maxSize - (mx - left)
 					case posLeft:
-						// -1 so the cursor sits on the last column of the preview window
-						left = previewLeft + minPreviewWidth - 1
-						// +1 since 0- to 1-based
+						left := previewLeft + minPreviewWidth
+						// +1 since index to size
 						newSize = mx - left + 1
 					}
-
 					if newSize < 1 {
 						newSize = 1
 					}
 
-					// break if size did not change
+					// don't update if the size did not change (e.g. off-axis movement)
 					if !t.previewOpts.size.percent && t.previewOpts.size.size == float64(newSize) {
 						break
 					}
@@ -4708,9 +4706,6 @@ func (t *Terminal) Loop() error {
 					t.previewOpts.size = sizeSpec{float64(newSize), false}
 					updatePreviewWindow(false)
 					req(reqPreviewRefresh)
-
-					// t.executeCommand(fmt.Sprintf("echo \"x: %d, normX: %d, maxSize: %d, wleft: %d, pleft: %d, wWidth: %d, pwWidth: %d, newSize: %d\" >> fzf.log", mx, mx - left, maxSize, t.window.Left(), t.pwindow.Left(), t.window.Width(), t.pwindow.Width(), newSize), false, true, false, false, "")
-					// t.executeCommand(fmt.Sprintf("echo \"y: %d, normY: %d, maxSize: %d, wtop: %d, ptop: %d, wHeight: %d, pwHeight: %d, newSize: %d\" >> fzf.log", my, my - top, maxSize, t.window.Top(), t.pwindow.Top(), t.window.Height(), t.pwindow.Height(), newSize), false, true, false, false, "")
 					break
 				}
 
