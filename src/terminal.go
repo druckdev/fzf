@@ -4648,15 +4648,15 @@ func (t *Terminal) Loop() error {
 					minPreviewWidth--
 					minPreviewHeight--
 
-					previewTop := t.pwindow.Top()
 					previewLeft := t.pwindow.Left()
+					previewTop := t.pwindow.Top()
 					// Unlike window, pwindow does not include it's border, so
-					// Top and Left have to be adjusted.
+					// Left and Top have to be adjusted.
+					if t.previewOpts.border.HasLeft() {
+						previewLeft -= 1 + t.borderWidth
+					}
 					if t.previewOpts.border.HasTop() {
 						previewTop -= 1
-					}
-					if t.previewOpts.border.HasLeft() {
-						previewLeft -= t.borderWidth + 1
 					}
 
 					var newSize int
@@ -4667,11 +4667,11 @@ func (t *Terminal) Loop() error {
 						newSize = my - top + 1
 					case posRight:
 						left := t.window.Left() + minWidth
-						maxSize: = previewLeft + previewWidth - minPreviewWidth - left
+						maxSize := previewLeft + previewWidth - minPreviewWidth - left
 						newSize = maxSize - (mx - left)
 					case posDown:
 						top := t.window.Top() + minHeight
-						maxSize: = previewTop + previewHeight - minPreviewHeight - top
+						maxSize := previewTop + previewHeight - minPreviewHeight - top
 						newSize = maxSize - (my - top)
 					case posLeft:
 						left := previewLeft + minPreviewWidth
