@@ -4604,6 +4604,13 @@ func (t *Terminal) Loop() error {
 					// TODO: scrollbar disappears for positions left & right
 					// TODO: should this allow a size of zero?
 
+					// TODO: this does nothing currently as the resizing code
+					//       uses the hardcoded minHeight value
+					minWindowHeight := minHeight
+					if t.noSeparatorLine() {
+						minWindowHeight--
+					}
+
 					previewWidth := t.pwindow.Width() + borderColumns(t.previewOpts.border, t.borderWidth)
 					previewHeight := t.pwindow.Height() + borderLines(t.previewOpts.border)
 					minPreviewWidth := 1 + borderColumns(t.previewOpts.border, t.borderWidth)
@@ -4613,6 +4620,10 @@ func (t *Terminal) Loop() error {
 					// the one after.
 					minPreviewWidth--
 					minPreviewHeight--
+					if len(t.scrollbar) > 0 && !t.previewOpts.border.HasRight() {
+						// Need a column to show scrollbar
+						minPreviewWidth++
+					}
 
 					previewLeft := t.pwindow.Left()
 					previewTop := t.pwindow.Top()
@@ -4636,7 +4647,7 @@ func (t *Terminal) Loop() error {
 						maxSize := previewLeft + previewWidth - minPreviewWidth - left
 						newSize = maxSize - (mx - left)
 					case posDown:
-						top := t.window.Top() + minHeight
+						top := t.window.Top() + minWindowHeight
 						maxSize := previewTop + previewHeight - minPreviewHeight - top
 						newSize = maxSize - (my - top)
 					case posLeft:
