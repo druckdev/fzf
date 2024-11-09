@@ -974,7 +974,6 @@ func (t *Terminal) environ() []string {
 }
 
 func borderLines(shape tui.BorderShape) int {
-	// TODO: Use HasTop & HasBottom
 	switch shape {
 	case tui.BorderHorizontal, tui.BorderRounded, tui.BorderSharp, tui.BorderBold, tui.BorderBlock, tui.BorderThinBlock, tui.BorderDouble:
 		return 2
@@ -1582,7 +1581,6 @@ func (t *Terminal) resizeWindows(forcePreview bool) {
 					previewBorder = tui.MakeBorderStyle(previewOpts.border, t.unicode)
 				}
 				t.pborder = t.tui.NewWindow(y, x, w, h, true, previewBorder)
-				// TODO: use HasLeft() etc.
 				switch previewOpts.border {
 				case tui.BorderSharp, tui.BorderRounded, tui.BorderBold, tui.BorderBlock, tui.BorderThinBlock, tui.BorderDouble:
 					pwidth -= (1 + bw) * 2
@@ -1619,7 +1617,6 @@ func (t *Terminal) resizeWindows(forcePreview bool) {
 			}
 			verticalPad := 2
 			minPreviewHeight := 3
-			// Use HasTop and HasBottom
 			switch previewOpts.border {
 			case tui.BorderNone, tui.BorderVertical, tui.BorderLeft, tui.BorderRight:
 				verticalPad = 0
@@ -1657,20 +1654,7 @@ func (t *Terminal) resizeWindows(forcePreview bool) {
 					createPreviewWindow(marginInt[0]+height-pheight, marginInt[3], width, pheight)
 				}
 			case posLeft, posRight:
-				// TODO: the current code responds buggy to new sizes
-				// when borders are missing (i.e. Width != newSize after
-				// a resize, e.g. newSize == 1 -> Width == 5).
-				minPreviewWidth := 1
-				pad := 0
-				if previewOpts.border.HasLeft() {
-					pad += 2 // TODO: use borderWidth
-				}
-				if previewOpts.border.HasRight() {
-					pad += 2 // TODO: use borderWidth
-				}
-				// pad = 4
-				minPreviewWidth += pad
-				pwidth := calculateSize(width, previewOpts.size, minWidth, minPreviewWidth, pad)
+				pwidth := calculateSize(width, previewOpts.size, minWidth, 5, 4)
 				if hasThreshold && pwidth < previewOpts.threshold {
 					t.activePreviewOpts = previewOpts.alternative
 					if forcePreview {
